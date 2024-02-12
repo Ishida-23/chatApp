@@ -1,49 +1,31 @@
 <?php declare(strict_types=1); ?>
-<!-- 外部ファイル読み込み --><?php require_once dirname(__FILE__) . "/chat_function.php"; ?>
+<?php require_once dirname(__FILE__)."/chatApp.php";?><!-- 外部ファイル読み込み -->
 <?php
 session_start();// セッションの開始
 $err="";
 $page="";
 
-if(isset($_SESSION["loginflg"])){
+if(isset($_SESSION["chatApp"])){
     header("Location:question.php",true,307);
     exit;
 }
 
 // POST情報からアカウント登録
 if($_SERVER["REQUEST_METHOD"]=="POST"){
-    if($_POST["viewName"] !="" && $_POST["userId"] !="" && $_POST["userPw"] !="" ){
-        $viewName = trim($_POST["viewName"]);//前後の空白除去
-        $userId = preg_replace("/\s|　/", "", $_POST["userId"]); //すべての空白除去
-        $pass = preg_replace("/\s|　/", "", $_POST["pass"]); //すべての空白除去
-        $viewName = htmlspecialchars($viewName,ENT_QUOTES | ENT_HTML5);
-        $userId = htmlspecialchars($userId,ENT_QUOTES | ENT_HTML5);
-        $pass = htmlspecialchars($pass,ENT_QUOTES | ENT_HTML5);
-        
-        if(strlen($userId) >= 6&& strlen($pass) >= 6){
-            // ログイン成功時
-            try{
-                $pdo= Connect();
-                $sql="INSERT INTO user";
-                $sql.="(loginId,password,name)";
-                $sql.="VALUES";
-                $sql.="(:loginId,:password,:name)";
-                $statement=$pdo->prepare($sql);
-                $statement->bindValue(":loginId",$userId,PDO::PARAM_STR);
-                $statement->bindValue(":password",$pass,PDO::PARAM_INT);
-                $statement->bindValue(":name",$viewName,PDO::PARAM_INT);
-                $statement->execute();
-
-                //ログイン画面にリダイレクト
+    if($_POST["viewName"] !="" && $_POST["userId"] !="" && $_POST["pass"] !="" ){      
+        switch (chatApp::userAdd($_POST["viewName"],$_POST["userId"],$_POST["pass"])) {
+            case 0:
+                $err="登録に失敗しました。";
+                break;
+            case 1:
                 header("Location:index.php",true,307);
                 exit;
-            }catch(PDOException $ex){
-                $err= "接続に失敗しました。";
-            }
-        }elseif(strlen($userId) <6){
-            $err="ユーザー名は6～10文字で登録してください。";
-        }else{
-            $err="パスワードは6～10文字で登録してください。";
+            case 2:
+                $err="ユーザー名は6～10文字で登録してください。";
+                break;
+            case 3:
+                $err="パスワードは6～10文字で登録してください。";
+                break;
         }
     }else{
         $err="入力してください。";

@@ -1,49 +1,27 @@
 <?php declare(strict_types=1); ?>
-<?php require_once dirname(__FILE__) . "/chat_function.php"; ?><!-- 外部ファイル読み込み -->
+<?php require_once dirname(__FILE__)."/chatApp.php";?><!-- 外部ファイル読み込み -->
 <?php
 session_start();// セッションの開始
 $err="";
+//ログアウト
 if(isset($_POST["logout"])){
-    Logout();
+    $_SESSION["chatApp"]->logout();
     header("Location:question.php",true,307);
     exit;
 }
-if(!isset($_SESSION["loginflg"])){
+//未ログイン時はログイン画面へ遷移
+if(!isset($_SESSION["chatApp"])){
     header("Location:index.php?page=" .$_GET["page"],true,307);
     exit;
 }
 
-$userId=Login();
 if($_SERVER["REQUEST_METHOD"]=="POST"){
     // POST確認
     if(isset($_POST["register"])){
         if(!$_POST["text"]==""){
-            try{
-                $question = preg_replace("/\s|　/", "", $_POST["text"]); //すべての空白除去
-                $question=htmlspecialchars($question,ENT_QUOTES | ENT_HTML5);
-                $date=date("YmdHis");
-
-                $pdo= Connect();
-                $sql="INSERT INTO question";
-                $sql.="(userId,question,date)";
-                $sql.="VALUES";
-                $sql.="(:userId,:question,:date)";
-
-                $statement=$pdo->prepare($sql);
-                $statement->bindValue(":userId", $userId ,PDO::PARAM_INT);
-                $statement->bindValue(":question", $question ,PDO::PARAM_STR);
-                $statement->bindValue(":date", $date ,PDO::PARAM_INT);
-                $statement->execute();
-                if(isset($_GET["page"])){
-                    header("Location:question.php",true,307);
-                    exit;
-                }else{
-                    header("Location:question.php",true,307);
-                    exit;
-                }
-            }catch(PDOException $ex){
-                $err= "投稿に失敗しました。";
-            }
+            $_SESSION["chatApp"]->input($_SESSION["chatApp"]->getUserBean()->getId(),$_POST["text"]);
+            header("Location:question.php",true,307);
+            exit;
         }else{
             $err="コメントを入力してください。";
         }

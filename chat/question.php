@@ -1,33 +1,17 @@
 <?php declare(strict_types=1); ?>
-<?php require_once dirname(__FILE__)."/chat_function.php";?><!-- 外部ファイル読み込み -->
+<?php require_once dirname(__FILE__)."/Dao/QuestionDao.php";?>
+<?php require_once dirname(__FILE__)."/chatApp.php";?>
 <?php
 session_start();// セッションの開始
 $err="";
 
 if($_SERVER["REQUEST_METHOD"]=="POST"){
     if(isset($_POST["logout"])){
-        Logout();
+        $_SESSION["chatApp"]->logout();
     }elseif(isset($_POST["delete"])){
-        Delete_question();
+        QuestionDao::deleteQuestion($_POST["questionId"]);
     }
 }
-
-$statement;
-try{
-    // DBに接続
-    $pdo= Connect();
-    // クエリの準備
-    $sql="SELECT question.id,question,date,name,userId FROM question 
-        LEFT JOIN user ON question.userId=user.id 
-        WHERE deleteflg!=1 ORDER BY question.id DESC;";
-    // スタートメントの準備
-    $statement=$pdo->prepare($sql);
-    // 実行
-    $statement->execute();
-}catch(PDOException $ex){
-    $err= "接続に失敗しました。";
-}
-
 ?>
 
 <!DOCTYPE html>
@@ -39,46 +23,67 @@ try{
     <link rel="stylesheet" href="css/style.css"><!-- 外部ファイル読み込み -->
 </head> 
 <body>
-    
     <header> <!--ヘッダー　-->
         <h1><a href= "question.php">チャットアプリ</a></h1>
         <nav>
-            <?php require_once dirname(__FILE__) . "/header.php"; ?><!-- 外部ファイル読み込み -->
             <form action= "questionInput.php" method= "GET">
                 <input type= "hidden" name= "page" value= "questionInput.php">
                 <input type= "submit"  value= "質問を投稿する">
             </form>
+            <?php require_once dirname(__FILE__) . "/header.php"; ?><!-- 外部ファイル読み込み -->
         </nav>
     </header> <!--ヘッダーここまで　-->
     <main> <!--メイン　-->
         <?php
-        // PDO::FETCH_ASSOCはDBから該当したカラム名のみ取得
-        while($question = $statement ->fetch(PDO::FETCH_ASSOC)){
-            $questionId= $question["id"];
-            $question_text= htmlspecialchars($question["question"],ENT_QUOTES | ENT_HTML5);
+        $tmp = new QuestionDao();
+        $questions=$tmp->findAll();
+        define('MAX',3); // 1ページの投稿の表示数
+        $total = count($questions); // トータル件数
+        $max_page = ceil($total / MAX); 
+        if(!isset($_GET['page_id'])){ 
+            $now = 1; 
+        }else{
+            $now = $_GET['page_id'];
+        }
+        $start_no = ($now - 1) * MAX; 
+       
+        $questions_paging = array_slice($questions, $start_no, MAX, true);
+
+        foreach($questions_paging as $question){
         ?>  
             <div class= "question">
                 <p>
-                    <?= $question["name"] ?><br>
-                    <?= $question_text ?><br>
-                    <?= $question["date"] ?><br>
+                    <?= $question->getName() ?><br>
+                    <?= $question->getQuestion() ?><br>
+                    <?= $question->getDate() ?><br>
                 </p>
                     <div class= "button">
                         <form action= "detail.php" method= "GET">
-                            <input type= "hidden" name= "questionId" value= "<?= $questionId?> ">
+                            <input type= "hidden" name= "questionId" value= "<?= $question->getId()?> ">
                             <input type= "submit" name="" value= "詳細">
                         </form>
-    
+                    
                         <!-- 本人のみ削除 -->
-        <?php           if(Login() == $question["userId"]){ ?>
-                            <form action= "<?= $_SERVER['PHP_SELF'] ?>" method= 'POST'>
-                                <input type= "hidden" name= "questionId" value= "<?= $questionId ?> ">
-                                <input type= "submit" name= "delete" value= "削除">
-                            </form>
+        <?php           if(isset($_SESSION["chatApp"])){
+                            if($_SESSION["chatApp"]->getUserBean()->getId() == $question->getUserId()){ ?>
+                                <form action= "<?= $_SERVER['PHP_SELF'] ?>" method= 'POST'>
+                                    <input type= "hidden" name= "questionId" value= "<?= $question->getId()?> ">
+                                    <input type= "submit" name= "delete" value= "削除">
+                                </form>
         <?php   
-                        }
+                            }   
+                        }   
                     echo "</div>";
             echo "</div>";
+        }
+        for($i = 1; $i <= $max_page; $i++){ 
+            if ($i == $now) {   
+                echo $now; 
+            } else {
+                ?>
+                <a href="/question.php?page_id=<?= $i ?>"><?= $i ?></a>
+            <?php
+            }
         }
         ?>
         <p><?= $err ?></p>
