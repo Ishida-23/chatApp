@@ -35,8 +35,8 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
     </header> <!--ヘッダーここまで　-->
     <main> <!--メイン　-->
         <?php
-        $tmp = new QuestionDao();
-        $questions=$tmp->findAll();
+        $questions=QuestionDao::findAll();
+        if($questions!=null){
         define('MAX',3); // 1ページの投稿の表示数
         $total = count($questions); // トータル件数
         $max_page = ceil($total / MAX); 
@@ -81,10 +81,13 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
                 echo $now; 
             } else {
                 ?>
-                <a href="/question.php?page_id=<?= $i ?>"><?= $i ?></a>
+                <a href="question.php?page_id=<?= $i ?>"><?= $i ?></a>
             <?php
             }
         }
+    }else{
+        echo "投稿されていません。";
+    }
         ?>
         <p><?= $err ?></p>
 

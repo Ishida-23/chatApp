@@ -1,5 +1,7 @@
 <?php declare(strict_types=1); ?>
-<!-- 外部ファイル読み込み --><?php require_once dirname(__FILE__) . "/chat_function.php"; ?>
+<?php require_once dirname(__FILE__)."/Dao/QuestionDao.php";?>
+<?php require_once dirname(__FILE__)."/Dao/AnswerDao.php";?>
+<?php require_once dirname(__FILE__)."/chatApp.php";?>
 <?php
 session_start();// セッションの開始
 $err="";
@@ -8,11 +10,11 @@ $questionInput = "";
 if($_SERVER["REQUEST_METHOD"]=="POST"){
     $questionInput = $_POST["questionId"];
     if(isset($_POST["logout"])){
-        Logout();
+        $_SESSION["chatApp"]->logout();
         header("Location:question.php",true,307);
         exit;
     }elseif(isset($_POST["delete"])){
-        Delete_answer();
+        // Delete_answer();
     }
 }else{
     if(isset($_GET["questionId"])){             
@@ -21,50 +23,6 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
         header("Location:question.php",true,307);
         exit;
     }
-}
-
-
-
-// 質問文を抽出
-$statement;
-try{
-    // DBに接続
-    $pdo=Connect();
-    // クエリの準備
-    $sql="SELECT name,question,date,question.id FROM question
-            LEFT JOIN user ON question.userId = user.id
-            WHERE question.id = :p_name";
-    // ステートメントの準備
-    $statement= $pdo->prepare($sql);
-    // 値のバインド
-    $statement->bindValue(":p_name", $questionInput ,PDO::PARAM_INT);
-    // 実行
-    $statement->execute();
-}catch(PDOExcetion $ex){   
-    $err  =  "<p>DB接続に失敗しました。<br>";
-    $err .="システム管理者へ連絡してください。</p>";
-}
-?>
-
-<?php
-//回答表示
-$statementAns;
-try{
-    // DBに接続
-    $pdo=Connect();
-    // クエリの準備
-    $sql="SELECT name,answer,date,answer.id,userId,questionId FROM answer
-            LEFT JOIN user  ON answer.userId = user.id
-            WHERE deleteFlg != 1 AND answer.questionId = :a_name";
-    // ステートメントの準備
-    $statementAns= $pdo->prepare($sql);
-    // 値のバインド
-    $statementAns->bindValue(":a_name", $questionInput ,PDO::PARAM_INT);
-    // 実行
-    $statementAns->execute();
-}catch(PDOExcetion $ex){
-    $err  =  "<p>DB接続に失敗しました。<br>";
-    $err .="システム管理者へ連絡してください。</p>";
 }
 ?>
 
@@ -87,17 +45,11 @@ try{
         <p>質問</p>
             <div class="question">
                 <form action="answer.php" method="GET">
-                    <?php
-                    if(isset($statement)) {
-                        $question= $statement->fetch(PDO::FETCH_ASSOC);
-                        $questionId =$question["id"];
-                        $questionQuestion = htmlspecialchars($question["question"],ENT_QUOTES | ENT_HTML5);
-                        echo $question["name"]."<br>";
-                        echo $questionQuestion."<br>";
-                        echo $question["date"]."<br>";
-                    }
-                    ?>
-                    <input type="hidden" name="questionId" value="<?=$questionId ?>" >
+                    <?php $question=QuestionDao::findById($questionInput); ?>
+                    <?=$question->getName() ?><br>
+                    <?=$question->getQuestion() ?><br>
+                    <?=$question->getDate() ?><br>
+                    <input type="hidden" name="questionId" value="<?=$question->getId() ?>" >
                     <input type="hidden" name="page" value="answer.php">
                     <input type="submit" name="answer" value="回答">                    
                 </form>
@@ -105,29 +57,55 @@ try{
         <P>回答</P>
         <?php
         // 回答文をフェッチ
-        while($ans= $statementAns->fetch(PDO::FETCH_ASSOC)){
-            $answerId =$ans["id"];
-            $answerAns = htmlspecialchars($ans["answer"],ENT_QUOTES | ENT_HTML5);
-            $answerDate =$ans["date"];
-            $questionId=$ans["questionId"];
-        ?>
-            <div class="answer">
+        $answers=AnswerDao::findAll($questionInput);
+        if($answers!=null){
+            define('MAX',3); // 1ページの投稿の表示数
+            $total = count($answers); // トータル件数
+            $max_page = ceil($total / MAX); 
+            if(!isset($_GET['page_id'])){ 
+                $now = 1; 
+            }else{
+                $now = $_GET['page_id'];
+            }
+            $start_no = ($now - 1) * MAX; 
+        
+            $answers_paging = array_slice($answers, $start_no, MAX, true);
+
+            foreach($answers_paging as $answer){
+            ?>
+            <div class= "question">
                 <p>
-                    <?=$ans["name"]?><br>
-                    <?=$answerAns?><br>
-                    <?=$answerDate?><br>
+                    <?= $answer->getName() ?><br>
+                    <?= $answer->getAnswer() ?><br>
+                    <?= $answer->getDate() ?><br>
                 </p>
-        <?php   if(Login() == $ans["userId"]){  ?> <!-- 本人のみ削除 -->
-                    <form action="<?=$_SERVER['PHP_SELF']?> "method='POST'>
-                        <input type="hidden" name= "questionId" value= "<?= $questionId ?>">
-                        <input type="hidden" name= "answerId" value= "<?= $answerId ?>">
-                        <input type="submit" name= "delete" value= "削除">
-                    </form>
-        <?php
+                <!-- 本人のみ削除 -->
+        <?php   if(isset($_SESSION["chatApp"])){
+                    if($_SESSION["chatApp"]->getUserBean()->getId() == $answer->getUserId()){ ?>
+                        <form action= "<?= $_SERVER['PHP_SELF'] ?>" method= 'POST'>
+                            <input type= "hidden" name= "answerId" value= "<?= $answer->getId()?> ">
+                            <input type= "submit" name= "delete" value= "削除">
+                        </form>
+        <?php   
+                    }   
+                }   
+                echo "</div>";
+            }
+            for($i = 1; $i <= $max_page; $i++){ 
+                if ($i == $now) {   
+                    echo $now; 
+                } else {
+                    ?>
+                    <a href="detail.php?page_id=<?= $i ?>"><?= $i ?></a>
+                <?php
                 }
-            echo "</div>";
+            }
+        }else{
+            echo "回答はまだされていません";
         }
         ?>
+        <p><?= $err ?></p>
+            
 
         <!-- 質問一覧に戻る -->
         <form action= "question.php" method= "GET">
