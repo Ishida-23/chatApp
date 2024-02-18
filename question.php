@@ -57,37 +57,37 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
                     <?= $question->getQuestion() ?><br>
                     <?= $question->getDate() ?><br>
                 </p>
-                    <div class= "button">
-                        <form action= "detail.php" method= "GET">
-                            <input type= "hidden" name= "questionId" value= "<?= $question->getId()?> ">
-                            <input type= "submit" name="" value= "詳細">
-                        </form>
+                <div class= "button">
+                    <form action= "detail.php" method= "GET">
+                        <input type= "hidden" name= "questionId" value= "<?= $question->getId()?> ">
+                        <input type= "submit" name="" value= "詳細">
+                    </form>
                     
-                        <!-- 本人のみ削除 -->
-        <?php           if(isset($_SESSION["chatApp"])){
-                            if($_SESSION["chatApp"]->getUserBean()->getId() == $question->getUserId()){ ?>
-                                <form action= "<?= $_SERVER['PHP_SELF'] ?>" method= 'POST'>
-                                    <input type= "hidden" name= "questionId" value= "<?= $question->getId()?> ">
-                                    <input type= "submit" name= "delete" value= "削除">
-                                </form>
+                    <!-- 本人のみ削除 -->
+        <?php       if(isset($_SESSION["chatApp"])){
+                        if($_SESSION["chatApp"]->getUserBean()->getId() == $question->getUserId()){ ?>
+                            <form action= "<?= $_SERVER['PHP_SELF'] ?>" method= 'POST'>
+                                <input type= "hidden" name= "questionId" value= "<?= $question->getId()?> ">
+                                <input type= "submit" name= "delete" value= "削除">
+                            </form>
         <?php   
-                            }   
                         }   
-                    echo "</div>";
+                    }   
+                echo "</div>";
             echo "</div>";
-        }
-        for($i = 1; $i <= $max_page; $i++){ 
-            if ($i == $now) {   
-                echo $now; 
-            } else {
-                ?>
-                <a href="question.php?page_id=<?= $i ?>"><?= $i ?></a>
-            <?php
             }
+            for($i = 1; $i <= $max_page; $i++){ 
+                if ($i == $now) {   
+                    echo $now; 
+                } else {
+                    ?>
+                    <a href="question.php?page_id=<?= $i ?>"><?= $i ?></a>
+                <?php
+                }
+            }
+        }else{
+            echo "投稿されていません。";
         }
-    }else{
-        echo "投稿されていません。";
-    }
         ?>
         <p><?= $err ?></p>
 
